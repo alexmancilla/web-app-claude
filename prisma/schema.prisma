@@ -1,0 +1,83 @@
+// This is your Prisma schema file, where you define the database models. Each model is a table in your database.
+// Prisma docs where you can learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("LOCAL_DATABASE_URL")
+}
+
+// datasource db {
+//   provider = "postgresql"
+//   url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+//   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+// }
+
+model User {
+    id                 String               @id @unique @default(uuid())
+    email              String               @unique
+    password           String?
+    name               String?
+    stripeId           String               @unique
+    createdAt          DateTime             @default(now())
+    updatedAt          DateTime             @updatedAt
+    verified           Boolean              @default(false)
+    roles              String[]             @default(["user"])
+    signInMethod       SignInMethod          @default(Credentials)
+    PasswordResetToken PasswordResetToken[] //sent via email
+    VerificationToken  VerificationToken[] //sent via email
+}
+
+enum SignInMethod {
+  Credentials
+  Google
+}
+
+model VerificationToken {
+    id          String    @id @unique @default(uuid())
+    activatedAt DateTime?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    user        User      @relation(fields: [email], references: [email], onDelete: Cascade) // In prisma "on delete cascade" specifies that when a record in a table is deleted, associated records in related tables should also be automatically deleted. We have to do this to delete an entry with associated data. 
+    email       String
+}
+
+model PasswordResetToken {
+    id        String    @id @unique @default(uuid())
+    resetAt   DateTime?
+    user      User      @relation(fields: [email], references: [email], onDelete: Cascade)
+    email     String
+    createdAt DateTime  @default(now())
+}
+
+model GenericEmail {
+    id                 String  @id @default(uuid())
+    subject            String
+    body               String
+    emailAttachmentUrl String?
+}
+
+model Product {
+    id              Int     @id @default(autoincrement())
+    stripeProductId String  @unique
+    stripePriceId   String  @unique
+    name            String
+    price           Float
+    currency        String
+    orders          Order[]
+    // Add other fields as needed, such as image URL, stock quantity, etc.
+}
+
+model Order {
+    id              String   @id
+    total           Float
+    status          String
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+    sessionEmail    String?
+    product         Product  @relation(fields: [productStripeId], references: [stripeProductId])
+    productStripeId String
+}
